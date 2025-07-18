@@ -4,14 +4,14 @@ class BlockController {
     }
 
     async blockIp(req, res) {
-        const { ip } = req.body;
+        const { ip, duration } = req.body;
 
         if (!ip) {
             return res.status(400).json({ error: 'IP are required.' });
         }
 
         try {
-            const result = await this.blockService.blockIp(ip);
+            const result = await this.blockService.blockIp(ip, duration);
             
            return res.status(result.status).json(result);
         } catch (error) {

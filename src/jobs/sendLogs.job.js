@@ -17,12 +17,6 @@ function generateHmacSignature(secret, timestamp, body) {
 
 async function sendLogs() {
 
-  console.log("log path", LOG_PATH);
-  console.log("nest api endpoint", NEST_API_ENDPOINT);
-  console.log("secret", SECRET);
-  console.log("server id", SERVER_ID);
-  console.log("user id", USER_ID);
-
     try {
       const logData = fs.readFileSync(LOG_PATH, "utf-8");
 

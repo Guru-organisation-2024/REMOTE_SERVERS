@@ -3,18 +3,40 @@ const path = require('path');
 const { exec } = require('child_process');
 
 class BlockService {
-  constructor(blockedFilePath) {
-    this.blockedFilePath = blockedFilePath || process.env.BLOCKED_IPS_PATH;
+  constructor() {
+    this.blockedFilePath = process.env.BLOCKED_IPS_PATH;
+    this.blockedFilePathJson = process.env.BLOCKED_IPS_PATH_JSON;
   }
 
-  async blockIp(ip) {
+  async blockIp(ip, duration) {
 
-    // console.log(`🔒 Blocking IP: ${ip}`);
+    console.log(`🔒 Blocking IP: ${ip}`);
+    console.log(`📅 Date: ${duration}`);
+    // return { status: 409, message: ` This IP: ${ip} already blocked.` };
 
     if (await this.isIpBlocked(ip)) {
       console.log(`🟡 IP ${ip} already blocked.`);
       return { status: 409, message: ` This IP: ${ip} already blocked.` };
     }
+
+    let jsonData = [];
+
+    try {
+      const fileContent = await fs.promises.readFile(this.blockedFilePathJson, 'utf-8');
+      if (fileContent.trim()) {
+        jsonData = JSON.parse(fileContent);
+      } else {
+        jsonData = [];
+      }
+    } catch (err) {
+      if (err.code !== 'ENOENT') throw err;
+    }
+
+    const expiresAt = await this.calculateExpiryDate(duration);
+
+    jsonData.push({ ip, expiresAt });
+    await fs.promises.writeFile(this.blockedFilePathJson, JSON.stringify(jsonData, null, 2));
+    console.log(`📄 IP ${ip} with date ${duration} added to blocked_ips.json`);
 
     await fs.promises.appendFile(this.blockedFilePath, ip + '\n');
     console.log(`✅ IP ${ip} added to ${this.blockedFilePath}`);
@@ -65,6 +87,28 @@ class BlockService {
       });
     });
   }
+
+  
+  async calculateExpiryDate(duration) {
+    const now = new Date();
+
+    const number = parseInt(duration);
+    const unit = duration.replace(number, '');
+
+    switch(unit) {
+      case 'h':
+        now.setHours(now.getHours() + number);
+        break;
+      case 'd':
+        now.setDate(now.getDate() + number);
+        break;
+      case 'm':
+        now.setMinutes(now.getMinutes() + number);
+        break;
+    }
+    return now.toISOString();
+  }
+
 }
 
 module.exports = BlockService;
