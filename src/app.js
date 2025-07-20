@@ -13,6 +13,6 @@ app.use(cors({
 
 app.use(express.json());
 
-app.use('/api/block', blockRoute);
+app.use('/api', blockRoute);
 
 module.exports = app;

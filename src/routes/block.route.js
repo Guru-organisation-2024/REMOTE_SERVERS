@@ -8,6 +8,8 @@ const router = express.Router();
 const blockService = new BlockService();
 const blockController = new BlockController(blockService);
 
-router.post('/', verifySignature, (req, res) => blockController.blockIp(req, res));
+router.post('/block', verifySignature, (req, res) => blockController.blockIp(req, res));
+router.post('/unblock', verifySignature, (req, res) => blockController.unblockIp(req, res));
+
 
 module.exports = router;

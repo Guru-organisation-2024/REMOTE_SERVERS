@@ -9,58 +9,136 @@ class BlockService {
   }
 
   async blockIp(ip, duration) {
-
-    console.log(`🔒 Blocking IP: ${ip}`);
-    console.log(`📅 Date: ${duration}`);
-    // return { status: 409, message: ` This IP: ${ip} already blocked.` };
-
-    if (await this.isIpBlocked(ip)) {
-      console.log(`🟡 IP ${ip} already blocked.`);
-      return { status: 409, message: ` This IP: ${ip} already blocked.` };
-    }
-
-    let jsonData = [];
+    const jsonFile = this.blockedFilePathJson;
+    const dataFile = this.blockedFilePath;
 
     try {
-      const fileContent = await fs.promises.readFile(this.blockedFilePathJson, 'utf-8');
-      if (fileContent.trim()) {
-        jsonData = JSON.parse(fileContent);
-      } else {
-        jsonData = [];
+      if (!fs.existsSync(jsonFile)) {
+        return { status: 404, message: `JSON file not found at ${jsonFile}` };
       }
+      if (!fs.existsSync(dataFile)) {
+        return { status: 404, message: `Data file not found at ${dataFile}` };
+      }
+
+      if (await this.isIpBlocked(ip)) {
+        return { status: 404, message: ` This IP: ${ip} already blocked.` };
+      }
+
+      let jsonData = [];
+      try {
+        const fileContent = await fs.promises.readFile(jsonFile, 'utf-8');
+        if (fileContent.trim()) {
+          jsonData = JSON.parse(fileContent);
+        } else {
+          jsonData = [];
+        }
+      } catch (err) {
+        if (err.code !== 'ENOENT') {
+          return { status: 500, message: 'Failed to read or parse JSON file', error: err.message };
+        }
+      }
+
+      const expiresAt = await this.calculateExpiryDate(duration);
+
+      jsonData.push({ ip, expiresAt });
+      await fs.promises.writeFile(jsonFile, JSON.stringify(jsonData, null, 2));
+
+      await fs.promises.appendFile(dataFile, ip + '\n');
+
+      try {
+        await this.restartApache();
+      } catch (apacheErr) {
+        return {
+          status: 500,
+          message: `IP ${ip} blocked, but Apache restart failed.`,
+          error: apacheErr.message,
+        };
+      }
+
+      return {
+        status: 200,
+        message: `✅ This IP: ${ip} blocked successfully.`,
+      };
+
     } catch (err) {
-      if (err.code !== 'ENOENT') throw err;
-    }
-
-    const expiresAt = await this.calculateExpiryDate(duration);
-
-    jsonData.push({ ip, expiresAt });
-    await fs.promises.writeFile(this.blockedFilePathJson, JSON.stringify(jsonData, null, 2));
-    console.log(`📄 IP ${ip} with date ${duration} added to blocked_ips.json`);
-
-    await fs.promises.appendFile(this.blockedFilePath, ip + '\n');
-    console.log(`✅ IP ${ip} added to ${this.blockedFilePath}`);
-
-    let restartError = null;
-    try {
-      await this.restartApache();
-    } catch (error) {
-      restartError = error.message;
-      console.error(`⚠️ Apache restart failed: ${restartError}`);
-    }
-
-    if (restartError) {
+      console.error(`❌ Error unblocking IP ${ip}:`, err);
       return {
         status: 500,
-        message: `IP blocked, but Apache restart failed.`,
-        error: restartError
+        message: `Unexpected error unblocking IP ${ip}`,
+        error: err.message,
       };
     }
+  }
 
-    return {
-      status: 200,
-      message: `✅ This IP: ${ip} blocked successfully.`,
-    };
+  async unblockIp(ip) {
+    const jsonFile = this.blockedFilePathJson;
+    const dataFile = this.blockedFilePath;
+
+    try {
+      if (!fs.existsSync(jsonFile)) {
+        return { status: 404, message: `JSON file not found at ${jsonFile}` };
+      }
+      if (!fs.existsSync(dataFile)) {
+        return { status: 404, message: `Data file not found at ${dataFile}` };
+      }
+
+      if (!await this.isIpBlocked(ip)) {
+        return { status: 404, message: ` This IP: ${ip} already unblocked.` };
+      }
+
+      const jsonDataRaw = fs.readFileSync(jsonFile, 'utf8');
+      const dataFileRaw = fs.readFileSync(dataFile, 'utf8');
+
+      let jsonData = [];
+      try {
+        jsonData = JSON.parse(jsonDataRaw);
+      } catch (parseErr) {
+        return { status: 500, message: 'Failed to parse JSON file', error: parseErr.message };
+      }
+
+      const newJsonData = jsonData.filter(entry => entry.ip !== ip);
+      const newDataFileLines = dataFileRaw
+        .split('\n')
+        .filter(line => line.trim() !== '' && line.trim() !== ip);
+
+      const jsonChanged = newJsonData.length !== jsonData.length;
+      const dataChanged = newDataFileLines.length !== dataFileRaw.split('\n').filter(l => l.trim() !== '').length;
+
+      if (!jsonChanged && !dataChanged) {
+        return { status: 200, message: `IP ${ip} not found in either file.` };
+      }
+
+      if (jsonChanged) {
+        fs.writeFileSync(jsonFile, JSON.stringify(newJsonData, null, 2) + '\n', 'utf8');
+      }
+
+      if (dataChanged) {
+        fs.writeFileSync(dataFile, newDataFileLines.join('\n') + '\n', 'utf8');
+      }
+
+      try {
+        await this.restartApache();
+      } catch (apacheErr) {
+        return {
+          status: 500,
+          message: `IP ${ip} removed, but Apache restart failed.`,
+          error: apacheErr.message,
+        };
+      }
+
+      return {
+        status: 200,
+        message: `IP ${ip} has been unblocked successfully.`,
+      };
+
+    } catch (err) {
+      console.error(`❌ Error unblocking IP ${ip}:`, err);
+      return {
+        status: 500,
+        message: `Unexpected error unblocking IP ${ip}`,
+        error: err.message,
+      };
+    }
   }
 
   async isIpBlocked(ip) {
@@ -88,7 +166,6 @@ class BlockService {
     });
   }
 
-  
   async calculateExpiryDate(duration) {
     const now = new Date();
 

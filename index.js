@@ -1,7 +1,7 @@
 require('dotenv').config();
 const app = require('./src/app');
 const { sendLogs } = require('./src/jobs/sendLogs.job');
-const { unblockIp } = require('./src/jobs/unblockIp.job');
+const { unblockIpPeriodically } = require('./src/jobs/unblockIpPeriodically.job');
 
 const PORT = process.env.PORT || 4000;
 
@@ -14,7 +14,7 @@ app.listen(PORT, () => {
     }, 60 * 60 * 1000);
 
     setInterval(() => {
-        unblockIp();
+        unblockIpPeriodically();
         console.log("📤 blocked ip live...");
-    }, 60 * 60 * 1000);
+    }, 60 * 1000);
 });
