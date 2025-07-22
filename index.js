@@ -13,8 +13,8 @@ app.listen(PORT, () => {
         console.log("📤 Sending logs...");
     }, 60 * 60 * 1000);
 
-    setInterval(() => {
-        unblockIpPeriodically();
-        console.log("📤 blocked ip live...");
-    }, 60 * 1000);
+    // setInterval(() => {
+    //     unblockIpPeriodically();
+    //     console.log("📤 blocked ip live...");
+    // }, 60 * 1000);
 });

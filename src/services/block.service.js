@@ -57,7 +57,7 @@ class BlockService {
 
       return {
         status: 200,
-        message: `✅ This IP: ${ip} blocked successfully.`,
+        message: `This IP: ${ip} blocked successfully.`,
       };
 
     } catch (err) {
