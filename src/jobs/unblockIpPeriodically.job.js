@@ -33,6 +33,8 @@ async function unblockIpPeriodically() {
 
     fs.writeFileSync(BLOCKED_FILE_PATH, updatedData.join('\n') + '\n');
 
+    const restart = restartApache();
+
     if (expiredIps.length !== 0) {
         const bodyPayload = {
           ips: expiredIps,
@@ -61,6 +63,20 @@ async function unblockIpPeriodically() {
   } catch (error) {
     console.error('❌ Error unblocking IPs:', error);
   }
+}
+
+async function restartApache() {
+  const restartCmd = process.env.APACHE_RESTART_CMD;
+  return new Promise((resolve, reject) => {
+    exec(restartCmd, (error, stdout, stderr) => {
+      if (error) {
+        console.error(`❌ Apache restart error: ${error.message}`);
+        return reject(error);
+      }
+      console.log('🔁 Apache restarted successfully.');
+      resolve();
+    });
+  });
 }
 
 module.exports = { unblockIpPeriodically };
