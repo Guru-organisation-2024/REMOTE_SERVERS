@@ -33,32 +33,31 @@ async function unblockIpPeriodically() {
 
     fs.writeFileSync(BLOCKED_FILE_PATH, updatedData.join('\n') + '\n');
 
-    const restart = restartApache();
+    const restart = await restartApache();
 
     if (expiredIps.length !== 0) {
-        const bodyPayload = {
-          ips: expiredIps,
-          server: SERVER_ID,
-          userId: USER_ID,
-        };
+      const bodyPayload = {
+        ips: expiredIps,
+        server: SERVER_ID,
+        userId: USER_ID,
+      };
 
-        const bodyString = JSON.stringify(bodyPayload);
-        const timestamp = Date.now().toString();
-        const signature = generateHmacSignature(SECRET, timestamp, bodyString);
+      const bodyString = JSON.stringify(bodyPayload);
+      const timestamp = Date.now().toString();
+      const signature = generateHmacSignature(SECRET, timestamp, bodyString);
 
 
-        await axios.post(`${NEST_API_ENDPOINT}/block-ip/remove`, bodyPayload, {
+      await axios.post(`${NEST_API_ENDPOINT}/block-ip/remove`, bodyPayload, {
         headers: {
-            "Content-Type": "application/json",
-            "X-Server-Id": SERVER_ID,
-            "X-Timestamp": timestamp,
-            "X-Signature": signature,
+          "Content-Type": "application/json",
+          "X-Server-Id": SERVER_ID,
+          "X-Timestamp": timestamp,
+          "X-Signature": signature,
         },
-        });
+      });
 
-        console.log("✅ Unblocked IPs sent successfully:", expiredIps);
+      console.log("✅ Unblocked IPs sent successfully:", expiredIps);
     }
-
    
   } catch (error) {
     console.error('❌ Error unblocking IPs:', error);
