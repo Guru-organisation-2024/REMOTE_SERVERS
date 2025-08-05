@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const axios = require("axios");
 const crypto = require("crypto");
+const { exec } = require('child_process');
 
 const BLOCKED_FILE_PATH = process.env.BLOCKED_IPS_PATH; 
 const BLOCKED_FILE_PATH_JSON = process.env.BLOCKED_IPS_PATH_JSON; 
