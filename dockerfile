@@ -13,11 +13,8 @@ RUN npm install
 # Copy the rest of the backend code
 COPY . .
 
-# Build backend
-RUN npm run build
-
 # Expose port
 EXPOSE 4000
 
 # Start the app
-CMD ["node", "dist/index.js"]
+CMD ["node", "index.js"]
